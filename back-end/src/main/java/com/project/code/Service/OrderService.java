@@ -1,27 +1,88 @@
 package com.project.code.Service;
 
+import com.project.code.Model.*;
+import com.project.code.Repo.*;
+import com.project.code.dto.request.PlaceOrderRequestDTO;
+import com.project.code.dto.request.PurchaseProductDTO;
+import com.project.code.exception.InvalidOrderException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+@Service
 public class OrderService {
-// 1. **saveOrder Method**:
-//    - Processes a customer's order, including saving the order details and associated items.
-//    - Parameters: `PlaceOrderRequestDTO placeOrderRequest` (Request data for placing an order)
-//    - Return Type: `void` (This method doesn't return anything, it just processes the order)
 
-// 2. **Retrieve or Create the Customer**:
-//    - Check if the customer exists by their email using `findByEmail`.
-//    - If the customer exists, use the existing customer; otherwise, create and save a new customer using `customerRepository.save()`.
+    private final OrderDetailsRepository orderDetailsRepository;
+    private final StoreRepository storeRepository;
+    private final CustomerRepository customerRepository;
+    private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
 
-// 3. **Retrieve the Store**:
-//    - Fetch the store by ID from `storeRepository`.
-//    - If the store doesn't exist, throw an exception. Use `storeRepository.findById()`.
+    public OrderService(OrderDetailsRepository orderDetailsRepository,
+                        StoreRepository storeRepository,
+                        CustomerRepository customerRepository,
+                        ProductRepository productRepository,
+                        InventoryRepository inventoryRepository) {
+        this.orderDetailsRepository = orderDetailsRepository;
+        this.storeRepository = storeRepository;
+        this.customerRepository = customerRepository;
+        this.productRepository = productRepository;
+        this.inventoryRepository = inventoryRepository;
+    }
 
-// 4. **Create OrderDetails**:
-//    - Create a new `OrderDetails` object and set customer, store, total price, and the current timestamp.
-//    - Set the order date using `java.time.LocalDateTime.now()` and save the order with `orderDetailsRepository.save()`.
+    @Transactional
+    public void saveOrder(PlaceOrderRequestDTO placeOrderRequest) throws InvalidOrderException {
+        OrderDetails orderDetails = createOrder(placeOrderRequest);
+        orderDetails.setOrderItems(getAllOrderItems(placeOrderRequest));
+        orderDetailsRepository.save(orderDetails);
+    }
 
-// 5. **Create and Save OrderItems**:
-//    - For each product purchased, find the corresponding inventory, update stock levels, and save the changes using `inventoryRepository.save()`.
-//    - Create and save `OrderItem` for each product and associate it with the `OrderDetails` using `orderItemRepository.save()`.
+    private Customer findOrSaveCustomer(PlaceOrderRequestDTO placeOrderRequest) {
+        Customer customer = customerRepository.findByEmail(placeOrderRequest.customerEmail());
+        if (customer == null) {
+            customer = new Customer();
+            customer.setEmail(placeOrderRequest.customerEmail());
+            customer.setName(placeOrderRequest.customerName());
+            customer.setPhone(placeOrderRequest.customerPhone());
+            customerRepository.save(customer);
+        }
+        return customer;
+    }
 
-   
+    public OrderDetails createOrder(PlaceOrderRequestDTO placeOrderRequest) {
+        OrderDetails orderDetails = new OrderDetails();
+        orderDetails.setDate(LocalDateTime.now());
+        orderDetails.setTotalPrice(placeOrderRequest.totalPrice());
+        orderDetails.setStore(getStore(placeOrderRequest.storeId()));
+        orderDetails.setCustomer(findOrSaveCustomer(placeOrderRequest));
+        return orderDetails;
+    }
+
+    public Store getStore(long storeId) {
+        return storeRepository.findById(storeId).orElseThrow();
+    }
+
+    public List<OrderItem> getAllOrderItems(PlaceOrderRequestDTO placeOrderRequest) throws InvalidOrderException {
+        List<OrderItem> orderItems = new ArrayList<>();
+        for( PurchaseProductDTO p : placeOrderRequest.purchaseProduct()) {
+            Optional<Product> product = productRepository.findById(p.id());
+            Optional<Inventory> inventory = inventoryRepository.findByProductIdAndStoreId(p.id(), placeOrderRequest.storeId());
+            if (product.isEmpty() || inventory.isEmpty() || p.quantity() > inventory.get().getStockLevel()) {
+                throw new InvalidOrderException();
+            } else {
+                OrderItem orderItem = new OrderItem();
+                orderItem.setProduct(product.get());
+                orderItem.setQuantity(p.quantity());
+                orderItem.setPrice(p.price());
+                orderItems.add(orderItem);
+                inventory.get().setStockLevel(inventory.get().getStockLevel() - p.quantity());
+                inventoryRepository.save(inventory.get());
+            }
+        }
+        return orderItems;
+    }
 }

@@ -1,9 +1,11 @@
 package com.project.code.Controller;
 
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController()
+@RequestMapping("/reviews")
 public class ReviewController {
-// 1. Set Up the Controller Class:
-//    - Annotate the class with `@RestController` to designate it as a REST controller for handling HTTP requests.
-//    - Map the class to the `/reviews` URL using `@RequestMapping("/reviews")`.
 
 
  // 2. Autowired Dependencies:
