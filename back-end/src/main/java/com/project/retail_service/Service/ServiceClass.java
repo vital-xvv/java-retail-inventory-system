@@ -1,6 +1,5 @@
 package com.project.retail_service.Service;
 
-import com.project.retail_service.Model.Inventory;
 import com.project.retail_service.Repo.InventoryRepository;
 import com.project.retail_service.Repo.ProductRepository;
 import com.project.retail_service.Repo.StoreRepository;
@@ -34,9 +33,5 @@ public class ServiceClass {
 
     public boolean validateStore(long storeId) {
         return storeRepository.findById(storeId).isPresent();
-    }
-
-    public Inventory getInventory(long productId, long storeId) {
-        return inventoryRepository.findByProductIdAndStoreId(productId, storeId).orElseThrow();
     }
 }

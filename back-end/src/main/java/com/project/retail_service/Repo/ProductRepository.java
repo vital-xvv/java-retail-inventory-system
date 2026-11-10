@@ -12,10 +12,9 @@ import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
-    List<Product> findByCategory(String category);
     List<Product> findByNameContainingAndCategory(String name, String category);
-    List<Product> findByPriceBetween(double minPrice, double maxPrice);
     Optional<Product> findByName(String name);
+    List<Product> findByNameContaining(String name);
     @Query("""
             SELECT DISTINCT p FROM Product p
             JOIN p.inventories i
@@ -23,5 +22,4 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
               AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))
             """)
     List<Product> findByStoreIdAndNameLike(@Param("storeId") Long storeId, @Param("name") String name);
-    List<Product> findByNameContaining(String name);
 }
